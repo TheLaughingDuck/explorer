@@ -1,0 +1,10 @@
+Package: explorer
+Title: Package and function exploration
+Version: 0.0.0.9000
+Authors@R: 
+    person("Simon", "Jorstedt", , "jorstedtsimon@gmail.com", role = c("aut", "cre"))
+Description: This is a package that helps you explore the structure of another package and the structure of a group of functions.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
