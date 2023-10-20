@@ -1,0 +1,94 @@
+#' Analyse the function structure in an R package
+#' 
+#' @description The `analyse_package` function finds and analyses all the .R files it can find in a package folder given by `directory`.
+#'
+#' @param directory A string indicating the directory of the package to be analysed
+#'
+#' @return A dataframe of all the .R files found in an R package
+#' 
+#' @importFrom magrittr %>% extract2
+#' @importFrom stringr str_count str_extract str_remove str_extract_all
+#' 
+#' @export analyse_package
+
+analyse_package <- function(directory){
+  # ---V--- Check Input ---V---
+  stopifnot("directory is not a character" = is.character(directory))
+  # ---^--- Check Input ---^---
+  
+  # Get the names of all the files in the `R` folder of the directory
+  file_names <- list.files(paste(directory, "R", sep="\\"))
+  
+  # Check for non .R files
+  # consider using str_detect instead
+  n_nonRfiles <- (!str_count(file_names, pattern="\\.R$")) %>% sum()
+  if(n_nonRfiles > 0){cat("Warning: There are", n_nonRfiles, "files that are not .R files in this folder.\n")}
+  
+  # Create a dataframe for all the functions
+  function_data <- data.frame(matrix(nrow=0, ncol=4)) # 4 columns from line below
+  colnames(function_data) <- c("File", "Name", "Arguments", "Lines")
+  
+  # Analyse the functions in each file
+  for(file in file_names){
+    # Read the lines in `file` as a character vector
+    lines <- readLines(paste(directory, "R", file, sep = "\\")) # Include \R later
+    
+    function_list <- c()
+    
+    i <- 1
+    in_a_function <- FALSE
+    n_lines <- 0 # Counts the number of lines in a function
+    while(i <= length(lines)){
+      
+      # Check if this line starts a function
+      function_match <- str_count(lines[i], "[a-zA-Z]{1,} <- function\\(.{0,}\\)\\{") == 1
+      if(function_match){# A function was found
+        in_a_function <- TRUE
+        n_lines <- n_lines + 1
+        
+        # Extract function name
+        fu_name <- str_extract(lines[i], "[a-zA-Z-_.]{1,}")
+        function_list <- c(function_list, fu_name)
+        #cat("\tFound function:", fu_name, "\n")
+        
+        # Extract arguments
+        # first remove "function_name <- function", then extract the possible arguments
+        fu_arguments <- str_remove(lines[i], pattern=".{1,}function") %>%
+          str_extract_all(pattern="[a-z]{1,}") %>%
+          extract2(1) # output should be a list of one element. Get the first element.
+        
+        i <- i + 1
+        next
+      }
+      
+      # This is basically an else, because the loop skips to next iteration if the if statement above is TRUE
+      if(in_a_function == TRUE){
+        
+        # Check that this line (i) does not end it (for now, ignore functions that start and end on the same line)
+        if(lines[i] == "}"){
+          n_lines <- n_lines + 1
+          in_a_function <- FALSE
+          # Save information in function data frame because this functions is ended
+          function_data[nrow(function_data)+1,] <- c(file,
+                                                     fu_name,
+                                                     paste0("(", paste(fu_arguments, collapse=", "), ")"),
+                                                     n_lines)
+          n_lines <- 0
+        }
+        
+        if(in_a_function == TRUE){n_lines <- n_lines + 1}
+        
+        # Skip to next line
+        i <- i + 1
+        next
+      }
+      
+      # This line is not part of a function
+      i <- i + 1
+      next
+    }
+  }
+  
+  # Return a dataframe with information about the functions
+  return(function_data)
+}
