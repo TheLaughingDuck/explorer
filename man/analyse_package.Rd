@@ -4,10 +4,12 @@
 \alias{analyse_package}
 \title{Analyse the function structure in an R package}
 \usage{
-analyse_package(directory)
+analyse_package(directory, is_local = FALSE)
 }
 \arguments{
 \item{directory}{A string indicating the directory of the package to be analysed}
+
+\item{is_local}{A logical indicating whether or not the package is local or a URL (this decides the use of "\" or "/" respectively).}
 }
 \value{
 A dataframe of all the .R files found in an R package
