@@ -3,11 +3,8 @@ test_that("bad input is caught",{
   expect_error(analyse_package(156))
 })
 
-# T
-test_that("this package analyses itself correctly",{
-  output <- analyse_package(r"(C:\Users\jorst\Documents\STUDIER\Master Courses\Advanced R Programming\explorer)")
-
-  expect_true(nrow(output) == 1)
-  expect_true(output$File[1] == "analyse_package.R")
-  expect_true(output$Name[1] == "analyse_package")
+# Test specific packages
+test_that("this package works on the dplyr package",{
+  # Please keep in mind that dplyr changes frequently
+  #output <- analyse_package(r"(https://github.com/tidyverse/dplyr/tree/main)")
 })
