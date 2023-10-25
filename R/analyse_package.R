@@ -2,9 +2,11 @@
 #'
 #' @description The `analyse_package` function finds and analyses all the .R files it can find in a package folder given by `directory`.
 #'
-#' @param directory A string indicating the directory of the package to be analysed
+#' @param directory A string indicating the directory of the package to be analysed.
 #'
-#' @param is_local A logical indicating whether or not the package is local or a URL (this decides the use of "\" or "/" respectively).
+#' @param is_local A logical indicating whether or not the package is local or a URL (this decides the use of "\" or "/" respectively). Defaults to FALSE.
+#'
+#' @param is_here A logical indicating whether or not the given `directory` points to a folder with the files, or if it points to the folder of a local package, and thus an "R" must be added to the file paths. Defaults to FALSE.
 #'
 #' @return A dataframe of all the .R files found in an R package
 #'
@@ -15,7 +17,8 @@
 #'
 #' @export analyse_package
 
-analyse_package <- function(directory, is_local = FALSE){
+analyse_package <- function(directory, is_local = FALSE, is_here = FALSE){
+
   # ---V--- Check Input ---V---
   stopifnot("directory is not a character" = is.character(directory))
   # ---^--- Check Input ---^---
@@ -24,18 +27,22 @@ analyse_package <- function(directory, is_local = FALSE){
   if(is_local == TRUE | str_detect(directory, pattern="[A-Z]{1}:")){
     # Set up to study local repo
 
-    file_names <- list.files(paste0(directory, "\\R\\"))
-    directory <- paste0(directory, "\\R\\")
+    # Whether or not to add a \\R\\
+    if(is_here == FALSE){
+      file_names <- list.files(paste0(directory, "\\R\\"))
+      directory <- paste0(directory, "\\R\\")
+    }
+    else{
+      file_names <- list.files(paste0(directory, "\\"))
+      directory <- paste0(directory, "\\")
+    }
 
     # separator is used when pasting on the function names later
     separator = "\\"
   }
   else{ # directory is external (assumed to be a github repo)
-    # See https://stackoverflow.com/questions/14441729/read-a-csv-from-github-into-r
-    # https://               github.com/tidyverse/dplyr
-    # https://raw.githubusercontent.com/tidyverse/dplyr/main/R/arrange.R
     #directory <- str_c(directory, "/tree/main/R")
-    website_string <- getURL(paste0(directory, "/tree/main/R")) # get the website in the form of a string (its a json though)
+    website_string <- getURL(paste0(directory, "/tree/main/R")) # get the website in the form of a json string.
     file_names <- fromJSON(website_string)$payload$tree$items$name
 
     # Change directory in order to access the "raw" text files
@@ -71,13 +78,16 @@ analyse_package <- function(directory, is_local = FALSE){
     while(i <= length(lines)){
 
       # Check if this line starts a function
-      function_match <- str_count(lines[i], "[a-zA-Z]{1,} <- function\\(.{0,}\\)\\{") == 1
-      if(function_match){# A function was found
+      #function_match <- str_count(lines[i], "^[a-zA-Z_.0-9]{1,} <- function") == 1
+      function_match <- str_count(lines[i], "((^[a-zA-Z]{1})|(^[.]{1}\\D))[a-zA-Z_.0-9]{0,}[ ]{0,1}((<-)|(=))[ ]{0,1}function") == 1
+      if(function_match & in_a_function == FALSE){# A function was found
         in_a_function <- TRUE
         n_lines <- n_lines + 1
 
         # Extract function name
-        fu_name <- str_extract(lines[i], "[a-zA-Z-_.]{1,}")
+        #fu_name <- str_extract(lines[i], "^[a-zA-Z-_.0-9]{1,}")
+        fu_name <- str_extract(lines[i], "((^[a-zA-Z]{1})|(^[.]{1}\\D))[a-zA-Z_.0-9]{0,}")
+
         function_list <- c(function_list, fu_name)
         #cat("\tFound function:", fu_name, "\n")
 
@@ -87,6 +97,20 @@ analyse_package <- function(directory, is_local = FALSE){
           str_extract_all(pattern="[a-z_.]{1,}") %>%
           extract2(1) # output should be a list of one element. Get the first element.
 
+        # Check if this is a one-line function
+        if(str_detect(lines[i], "\\}$")){
+          # Save this function
+          function_data[nrow(function_data)+1,] <- c(file,
+                                                     fu_name,
+                                                     paste0("(", paste(fu_arguments, collapse=", "), ")"),
+                                                     n_lines)
+          # Move on to next line
+          n_lines <- 0
+          in_a_function <- FALSE
+          i <- i + 1
+          next
+        }
+
         i <- i + 1
         next
       }
@@ -94,8 +118,8 @@ analyse_package <- function(directory, is_local = FALSE){
       # This is basically an else, because the loop skips to next iteration if the if statement above is TRUE
       if(in_a_function == TRUE){
 
-        # Check that this line (i) does not end it (for now, ignore functions that start and end on the same line)
-        if(lines[i] == "}"){
+        # Check that `line[i]` does not end the current function (one-line functions are identified earlier, in the function start if stament).
+        if(str_detect(lines[i], "\\}$")){
           n_lines <- n_lines + 1
           in_a_function <- FALSE
           # Save information in function data frame because this functions is ended
@@ -113,11 +137,11 @@ analyse_package <- function(directory, is_local = FALSE){
         next
       }
 
-      # This line is not part of a function
+      # This `line[i]` is not part of a function, so move on to next line
       i <- i + 1
       next
-    }
-  }
+    } # Analyse each line in a file
+  } # Analyse each file
 
   # Return a dataframe with information about the functions
   return(function_data)
