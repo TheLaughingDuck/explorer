@@ -71,13 +71,16 @@ analyse_package <- function(directory, is_local = FALSE){
     while(i <= length(lines)){
 
       # Check if this line starts a function
-      function_match <- str_count(lines[i], "[a-zA-Z]{1,} <- function\\(.{0,}\\)\\{") == 1
+      #function_match <- str_count(lines[i], "^[a-zA-Z_.0-9]{1,} <- function") == 1
+      function_match <- str_count(lines[i], "((^[a-zA-Z]{1})|(^[.]{1}\\D))[a-zA-Z_.0-9]{0,}[ ]{0,1}((<-)|(=))[ ]{0,1}function") == 1
       if(function_match){# A function was found
         in_a_function <- TRUE
         n_lines <- n_lines + 1
 
         # Extract function name
-        fu_name <- str_extract(lines[i], "[a-zA-Z-_.]{1,}")
+        #fu_name <- str_extract(lines[i], "^[a-zA-Z-_.0-9]{1,}")
+        fu_name <- str_extract(lines[i], "((^[a-zA-Z]{1})|(^[.]{1}\\D))[a-zA-Z_.0-9]{0,}")
+
         function_list <- c(function_list, fu_name)
         #cat("\tFound function:", fu_name, "\n")
 
